@@ -40,7 +40,7 @@ Generates an autoencoder (or an encoder or decoder) using *unsupervised* trainin
 `sampleOutput = runSample(sampleInput)`
 
 Runs the neural network on a *single* sample, and returns the network output.
-* If it's an autoencoder (encoder+decoder), length(sampleInput) and length(sampleOutput) equal the size of the training sample space.  If it's just an encoder, length(oneSampleOutput) equals numEncodingFeatures; if decoder only, length(oneSampleInput) must equal numEncodingFeatures.
-* If it's a decoder or autoencoder network with variational features, sample the variational features from the appropriate distribution and append them to oneSampleInput.
+* If it's an autoencoder (encoder+decoder), `length(sampleInput)` and `length(sampleOutput)` equal the number of features in the training sample space.  If it's just an encoder, `length(oneSampleOutput)` equals `numEncodingFeatures`; if decoder only, `length(oneSampleInput)` must equal `numEncodingFeatures`.
+* If it's a decoder or autoencoder network with variational features, sample the variational features from the appropriate distribution and append them to `oneSampleInput`.
 * The return value is simply a copy of the last layer of the network `myNN.y[myNN.numLayers]`.
-* Calling runSample() without argumentsj returns the training output *as calculated by the server*.  This is mainly a check that the data went through the pipes OK.
+* Calling `runSample()` without argumentsj returns the training output *as calculated by the server*.  This is mainly a check that the data went through the pipes OK.
