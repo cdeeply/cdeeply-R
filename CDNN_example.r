@@ -2,11 +2,15 @@ source("cdeeply_neural_network.r")
 
 numFeatures <- 10
 numSamples <- 100
+noiseAmplitude <- 0.1
+
 NNtypes <- c("autoencoder with 1 latent feature", "regressor")
 
 
     # generate a training matrix that traces out some noisy curve in Nf-dimensional space (noise ~ 0.1)
 
+cat("Training data along a 1D curve in feature space\n")
+cat("  * ", numSamples, " samples, ", numFeatures, " features; feature variance ~1 + Gaussian noise ~", noiseAmplitude, "\n")
 dependentVar <- matrix( runif(n = numSamples+1, min = 0, max = 1), nrow = numSamples+1)
 trainTestMat <- matrix( rnorm(n = (numSamples+1)*numFeatures, mean = 0, sd = 0.1), nrow = numSamples+1)
 for (cf in 1:numFeatures)  {
@@ -32,22 +36,22 @@ for (c2 in 1:2)  {
         firstSampleOutputs <- NN(trainTestMat[1, 1:(numFeatures-1)])
         testSampleOutputs <- NN(trainTestMat[numSamples+1, 1:(numFeatures-1)])
     }
-    outputsComputedByServer <- NN()[[1]]
+    outputsComputedByServer <- NN()
     
-    
-        # run the network on the first training sample
-    
-    if (abs(firstSampleOutputs[[1]]-outputsComputedByServer[[1]]) > .0001)  {
-        stop("  ** Network problem?  Sample 1 output was calculated as ", firstSampleOutputs[[1]], " locally vs ", outputsComputedByServer[[1]], " by the server")
+    if (max(abs(firstSampleOutputs - matrix(outputsComputedByServer[1,]))) > .0001)  {
+        stop("  ** Network problem?  Sample 1 output was calculated as ", firstSampleOutputs, " locally vs ", matrix(outputsComputedByServer[1,]), " by the server")
     }
+    
+    
+        # run the network on the test sample
     
     if (c2 == 1)  {
         targetValue <- trainTestMat[[numSamples+1, 1]]
-        targetDescription <- "  Reconstructed test sample, feature 1"    }
+        targetDescription <- "reconstructed feature 1"    }
     else  {
         targetValue <- trainTestMat[[numSamples+1, numFeatures]]
-        targetDescription <- "  Test sample output"    }
-    cat(targetDescription, " was ", testSampleOutputs[[1]], "; target value was ", targetValue, "\n")
+        targetDescription <- "output"    }
+    cat("  Test sample:  ", targetDescription, " was ", testSampleOutputs[[1]], "; target value was ", targetValue, "\n")
 }
         
         
