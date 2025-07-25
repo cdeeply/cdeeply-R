@@ -3,12 +3,19 @@
 # 1) Generate a neural network, using either of:
 # 
 # myNN <- CDNN_tabular_regressor( trainingSamples, indexOrder, outputIndices [, importances=c(),
-#               maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX", maxLayerSkips="NO_MAX",
-#               hasBias=TRUE, allowIOconnections=TRUE ] )
+#               maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX", maxWeightDepth="NO_MAX", maxActivationRate=1.,
+#               maxWeightsHardLimit=TRUE, maxHiddenNeuronsHardLimit=TRUE, maxActivationsHardLimit=TRUE, allowedAFs[5]=c(TRUE,TRUE,TRUE,TRUE,TRUE), 
+#               ifQuantizeW=FALSE, wQuantBits=0, wQuantZeroInt=0, wQuantRange=1.,
+#               ifQuantizeY=FALSE, yQuantBits=0, yQuantZeroInt=0, yQuantRange=1.,
+#               sparseWeights=FALSE, allowNegativeWeights=TRUE, hasBias=TRUE, allowIOconnections=TRUE ] )
 # 
 # myNN <- CDNN_tabular_encoder( trainingSamples, indexOrder [, importances=c(),
 #               doEncoder=TRUE, doDecoder=TRUE, numEncodingFeatures=1, numVariationalFeatures=0, variationalDistribution="NORMAL_DIST",
-#               maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX", maxLayerSkips="NO_MAX", hasBias=TRUE ] )
+#               maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX", maxWeightDepth="NO_MAX", maxActivationRate=1.,
+#               maxWeightsHardLimit=TRUE, maxHiddenNeuronsHardLimit=TRUE, maxActivationsHardLimit=TRUE, allowedAFs[5]=c(TRUE,TRUE,TRUE,TRUE,TRUE), 
+#               ifQuantizeW=FALSE, wQuantBits=0, wQuantZeroInt=0, wQuantRange=1.,
+#               ifQuantizeY=FALSE, yQuantBits=0, yQuantZeroInt=0, yQuantRange=1.,
+#               sparseWeights=FALSE, allowNegativeWeights=TRUE, hasBias=TRUE ] )
 # 
 # * indexOrder="SAMPLE_FEATURE_ARRAY" for trainingSamples[sampleNo][featureNo] indexing,
 #       or "FEATURE_SAMPLE_ARRAY" for trainingSamples[featureNo][sampleNo] indexing.
@@ -41,18 +48,24 @@ CDNN <- function(ifSupervised)
     
     CDNN_call = function(trainingSamples, indexOrder, outputIndices=c(), importances=c(),
             doEncoder=TRUE, doDecoder=TRUE, numEncodingFeatures=1, numVariationalFeatures=0, variationalDistribution="NORMAL_DIST",
-            maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX", maxLayerSkips="NO_MAX", hasBias=TRUE, allowIOconnections=TRUE)
+            maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX", maxWeightDepth="NO_MAX", maxActivationRate=1.,
+            maxWeightsHardLimit=TRUE, maxHiddenNeuronsHardLimit=TRUE, maxActivationsHardLimit=TRUE, allowedAFs=c(TRUE,TRUE,TRUE,TRUE,TRUE), 
+            ifQuantizeW=FALSE, wQuantBits=0, wQuantZeroInt=0, wQuantRange=1.,
+            ifQuantizeY=FALSE, yQuantBits=0, yQuantZeroInt=0, yQuantRange=1.,
+            sparseWeights=FALSE, allowNegativeWeights=TRUE, hasBias=TRUE, allowIOconnections=TRUE)
     {
         
         numLayers <- encoderLayer <- variationalLayer <- 0
-        layerSize <- layerAFs <- layerInputs <- weights <- c()
+        layerSize <- layerAFs <- layerInputs <- n0 <- nf <- weights <- c()
         y <- c()
+        sparseWeights <- FALSE
         
         fs <- c(
             function(x) { return(x) },
-            function(x) { return(x) },
-            function(x) { return(x) },
-            function(x) { return(x) },
+            function(x) { return(max(0., min(1., ceiling(x)))) },
+            function(x) { return(max(0., x)) },
+            function(x) { return(max(0., min(1., x))) },
+            function(x) { return(1. / (1. + exp(-x))) },
             function(x) { return(tanh(x)) }
         )
         
@@ -74,16 +87,16 @@ CDNN <- function(ifSupervised)
         
         rowcolStrings <- c("rows", "columns")
         
-        data2table = function(data, numIOs, NNtype)
+        data2table = function(data, numIOs)
         {
             if (indexOrder == "FEATURE_SAMPLE_ARRAY")  {
                 dim1 <- numIOs
                 dim2 <- numSamples
-                rowcol <- rowcolStrings[[NNtype]]     }
+                rowcol <- "rows"     }
             else if (indexOrder == "SAMPLE_FEATURE_ARRAY")  {
                 dim1 <- numSamples
                 dim2 <- numIOs
-                rowcol <- rowcolStrings[[3-NNtype]]   }
+                rowcol <- "columns"   }
             
             rowElStrings <- vector(mode="list", dim2)
             tableRowStrings <- vector(mode="list", dim1)
@@ -126,26 +139,49 @@ CDNN <- function(ifSupervised)
             
             allLayerInputs <- loadNumArray(NNdataRows[[5]])+1
             layerInputs <<- vector(mode="list", numLayers)
+            if (sparseWeights)  {
+                allWsizes <- loadNumArray(NNdataRows[[6]])
+                allL0s <- loadNumArray(NNdataRows[[7]])
+                allNfs <- loadNumArray(NNdataRows[[8]])
+                wSize <<- vector(mode="list", allWsizes)
+                swOffset = 3;
+            }
+            else  swOffset = 0;
+            
             idx <- 0
             for (l in 1:numLayers)  {
                 layerInputs[[l]] <<- c(allLayerInputs[idx+(1:numLayerInputs[[l]])])
+                if (sparseWeights)  wSize[[l]] <<- c(allWsizes[idx+(1:numLayerInputs[[l]])])
                 idx <- idx + numLayerInputs[[l]]
             }
             
-            allWs <- loadNumArray(NNdataRows[[6]])
+            allWs <- loadNumArray(NNdataRows[[6+swOffset]])
+            if (sparseWeights)  {
+                n0 <<- vector(mode="list", numLayers)
+                nf <<- vector(mode="list", numLayers)
+            }
             weights <<- vector(mode="list", numLayers)
             idx <- 0
             for (l in 1:numLayers)  {
+                if (sparseWeights)  {
+                    n0[[l]] <<- vector(mode="list", numLayerInputs[[l]])
+                    nf[[l]] <<- vector(mode="list", numLayerInputs[[l]])
+                }
                 weights[[l]] <<- vector(mode="list", numLayerInputs[[l]])
                 if (numLayerInputs[[l]] > 0)  {
                 for (li in 1:numLayerInputs[[l]])  {
                     l0 <- layerInputs[[l]][[li]]
                     numWeights <- layerSize[[l0]]*layerSize[[l]]
-                    weights[[l]][[li]] <<- t(matrix(unlist(allWs[idx+(1:numWeights)]), nrow=layerSize[[l0]], ncol=layerSize[[l]]))
+                    if (sparseWeights)  {
+                        n0[[l]][[li]] <<- allN0s[idx+(1:numWeights)]
+                        nf[[l]][[li]] <<- allNfs[idx+(1:numWeights)]
+                        weights[[l]][[li]] <<- allWs[idx+(1:numWeights)]
+                    }
+                    else  weights[[l]][[li]] <<- t(matrix(unlist(allWs[idx+(1:numWeights)]), nrow=layerSize[[l0]], ncol=layerSize[[l]]))
                     idx <- idx + numWeights
             }   }}
             
-            outputsComputedByServer <- matrix(unlist(loadNumArray(NNdataRows[[7]])), nrow=numSamples, ncol=numOutputs)
+            outputsComputedByServer <- matrix(unlist(loadNumArray(NNdataRows[[7+swOffset]])), nrow=numSamples, ncol=numOutputs)
             if (indexOrder == "FEATURE_SAMPLE_ARRAY")  {
                 outputsComputedByServer <- t(outputsComputedByServer)        }
             
@@ -179,9 +215,14 @@ CDNN <- function(ifSupervised)
                 if (length(layerInputs[[l]]) > 0)  {
                 for (li in 1:length(layerInputs[[l]]))  {
                     l0 <- layerInputs[[l]][[li]]
-                    y[[l]] <<- y[[l]] + weights[[l]][[li]] %*% y[[l0]]
-                }}
-                y[[l]] <<- fs[[layerAFs[[l]]]](y[[l]])
+                    if (sparseWeights)  {
+                        for (w in 1:length(weights[[l]][[li]]))  {
+                            y[[l]][[1,nf[[l]][[li]][[w]]]] <<- y[[l]][[1,nf[[l]][[li]][[w]]]] + weights[[l]][[li]][[w]] * y[[l0]][[1,n0[[l]][[li]][[w]]]]
+                    }   }
+                    else  {
+                        y[[l]] <<- y[[l]] + weights[[l]][[li]] %*% y[[l0]]
+                }}  }
+                for (n in 1:layerSize[[l]])  y[[l]][[n]] <<- fs[[layerAFs[[l]]]](y[[l]][[n]])
             }}
             
             return(y[[numLayers]])
@@ -208,10 +249,10 @@ CDNN <- function(ifSupervised)
             numOutputs <- length(outputIndices)
             numInputs <- numIOs-numOutputs
             
-            d2t <- data2table(trainingSamples, numIOs, 1)
+            d2t <- data2table(trainingSamples, numIOs)
             sampleString = d2t[[1]]
             rowcolString = d2t[[2]]
-            if (length(importances) > 0)  importancesString <- data2table(importances, numInputs, 1)
+            if (length(importances) > 0)  importancesString <- data2table(importances, numInputs)
             
             orcStrings <- vector(mode="list", length(outputIndices))
             if (length(outputIndices) > 0)  {
@@ -228,7 +269,26 @@ CDNN <- function(ifSupervised)
                 maxWeights = maxString(maxWeights),
                 maxNeurons = maxString(maxHiddenNeurons),
                 maxLayers = maxString(maxLayers),
-                maxSkips = maxString(maxLayerSkips),
+                maxWeightDepth = maxString(maxWeightDepth),
+                maxActivationRate = as.character(maxActivationRate),
+                maxWeightsHardLimit = ifChecked(maxWeightsHardLimit),
+                maxNeuronsHardLimit = ifChecked(maxHiddenNeuronsHardLimit),
+                maxActivationsHardLimit = ifChecked(maxActivationsHardLimit),
+                step = ifChecked(allowedAFs[[1]]),
+                ReLU = ifChecked(allowedAFs[[2]]),
+                ReLU1 = ifChecked(allowedAFs[[3]]),
+                sigmoid = ifChecked(allowedAFs[[4]]),
+                tanh = ifChecked(allowedAFs[[5]]),
+                quantizeWeights = ifChecked(ifQuantizeW),
+                wQuantBits = as.character(wQuantBits),
+                wQuantZero = as.character(wQuantZeroInt),
+                wQuantRange = as.character(wQuantRange),
+                quantizeActivations = ifChecked(ifQuantizeY),
+                yQuantBits = as.character(yQuantBits),
+                yQuantZero = as.character(yQuantZeroInt),
+                yQuantRange = as.character(yQuantRange),
+                sparseWeights = ifChecked(sparseWeights),
+                allowNegativeWeights = ifChecked(allowNegativeWeights),
                 hasBias = ifChecked(hasBias),
                 allowIO = ifChecked(allowIOconnections),
                 submitStatus = "Submit",
@@ -241,10 +301,10 @@ CDNN <- function(ifSupervised)
             if (doDecoder)  numOutputs <- numInputs
             else  numOutputs <- numEncodingFeatures
             
-            d2t <- data2table(trainingSamples, numInputs, 2)
+            d2t <- data2table(trainingSamples, numInputs)
             sampleString = d2t[[1]]
             rowcolString = d2t[[2]]
-            if (length(importances) > 0)  importancesString <- data2table(importances, numInputs, 2)
+            if (length(importances) > 0)  importancesString <- data2table(importances, numInputs)
             
             if ((variationalDistribution == "UNIFORM_DIST"))  variationalDistStr <- "uniform"
             else if ((variationalDistribution == "NORMAL_DIST"))  variationalDistStr <- "normal"
@@ -262,7 +322,26 @@ CDNN <- function(ifSupervised)
                 maxWeights = maxString(maxWeights),
                 maxNeurons = maxString(maxHiddenNeurons),
                 maxLayers = maxString(maxLayers),
-                maxSkips = maxString(maxLayerSkips),
+                maxWeightDepth = maxString(maxWeightDepth),
+                maxActivationRate = as.character(maxActivationRate),
+                maxWeightsHardLimit = ifChecked(maxWeightsHardLimit),
+                maxNeuronsHardLimit = ifChecked(maxHiddenNeuronsHardLimit),
+                maxActivationsHardLimit = ifChecked(maxActivationsHardLimit),
+                step = ifChecked(allowedAFs[[1]]),
+                ReLU = ifChecked(allowedAFs[[2]]),
+                ReLU1 = ifChecked(allowedAFs[[3]]),
+                sigmoid = ifChecked(allowedAFs[[4]]),
+                tanh = ifChecked(allowedAFs[[5]]),
+                quantizeWeights = ifChecked(ifQuantizeW),
+                wQuantBits = as.character(wQuantBits),
+                wQuantZero = as.character(wQuantZeroInt),
+                wQuantRange = as.character(wQuantRange),
+                quantizeActivations = ifChecked(ifQuantizeY),
+                yQuantBits = as.character(yQuantBits),
+                yQuantZero = as.character(yQuantZeroInt),
+                yQuantRange = as.character(yQuantRange),
+                sparseWeights = ifChecked(sparseWeights),
+                allowNegativeWeights = ifChecked(allowNegativeWeights),
                 hasBias = ifChecked(hasBias),
                 submitStatus = "Submit",
                 NNtype = "autoencoder",

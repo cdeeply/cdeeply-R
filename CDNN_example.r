@@ -20,6 +20,7 @@ for (cf in 1:numFeatures)  {
 }
 
 
+for (csc in 1:2)  {
 for (c2 in 1:2)  {
     
     
@@ -27,12 +28,12 @@ for (c2 in 1:2)  {
     
     cat("Generating ", NNtypes[[c2]], "\n")
     if (c2 == 1)  {
-        NN <- CDNN_tabular_encoder(trainTestMat[1:numSamples,], "SAMPLE_FEATURE_ARRAY", numEncodingFeatures=1, doEncoder=TRUE, doDecoder=TRUE)
+        NN <- CDNN_tabular_encoder(trainTestMat[1:numSamples,], "SAMPLE_FEATURE_ARRAY", numEncodingFeatures=1, doEncoder=TRUE, doDecoder=TRUE, sparseWeights=(csc==1))
         firstSampleOutputs <- NN(trainTestMat[1,])
         testSampleOutputs <- NN(trainTestMat[numSamples+1,])
     }
     else  {
-        NN <- CDNN_tabular_regressor(trainTestMat[1:numSamples,], "SAMPLE_FEATURE_ARRAY", c(numFeatures))
+        NN <- CDNN_tabular_regressor(trainTestMat[1:numSamples,], "SAMPLE_FEATURE_ARRAY", c(numFeatures), sparseWeights=(csc==1))
         firstSampleOutputs <- NN(trainTestMat[1, 1:(numFeatures-1)])
         testSampleOutputs <- NN(trainTestMat[numSamples+1, 1:(numFeatures-1)])
     }
@@ -52,6 +53,4 @@ for (c2 in 1:2)  {
         targetValue <- trainTestMat[[numSamples+1, numFeatures]]
         targetDescription <- "output"    }
     cat("  Test sample:  ", targetDescription, " was ", testSampleOutputs[[1]], "; target value was ", targetValue, "\n")
-}
-        
-        
+}}
