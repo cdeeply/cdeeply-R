@@ -11,8 +11,8 @@ Put cdeeply_neural_network.r into a reachable directory, then:
 `myNN <- CDNN_tabular_regressor(trainingSamples, sampleTableTranspose, outputIndices, importances=c(),`  
 `        maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX",`  
 `        maxWeightDepth="NO_MAX", maxActivationRate=1.,`  
-`        maxWeightsHardLimit=TRUE, maxHiddenNeuronsHardLimit=TRUE, maxActivationsHardLimit=TRUE,'  
-`        allowedAFs=[TRUE,TRUE,TRUE,TRUE,TRUE], `  
+`        maxWeightsHardLimit=TRUE, maxHiddenNeuronsHardLimit=TRUE, maxActivationsHardLimit=TRUE,`  
+`        allowedAFs=c(TRUE,TRUE,TRUE,TRUE,TRUE), `  
 `        ifQuantizeWeights=FALSE, wQuantBits=0, wQuantZeroInt=0, wQuantRange=1., `  
 `        ifQuantizeActivations=FALSE, yQuantBits=0, yQuantZeroInt=0, yQuantRange=1., `  
 `        sparseWeights=FALSE, allowNegativeWeights=TRUE, hasBias=TRUE, allowIOconnections=TRUE)`
