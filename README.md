@@ -12,9 +12,9 @@ Put cdeeply_neural_network.r into a reachable directory, then:
 `        maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX",`  
 `        maxWeightDepth="NO_MAX", maxActivationRate=1.,`  
 `        maxWeightsHardLimit=TRUE, maxHiddenNeuronsHardLimit=TRUE, maxActivationsHardLimit=TRUE,`  
-`        allowedAFs=c(TRUE,TRUE,TRUE,TRUE,TRUE), `  
-`        ifQuantizeWeights=FALSE, wQuantBits=0, wQuantZeroInt=0, wQuantRange=1., `  
-`        ifQuantizeActivations=FALSE, yQuantBits=0, yQuantZeroInt=0, yQuantRange=1., `  
+`        allowedAFs=c(TRUE,TRUE,TRUE,TRUE,TRUE),`  
+`        ifQuantizeWeights=FALSE, wQuantBits=0, wQuantZeroInt=0, wQuantRange=1.,`  
+`        ifQuantizeActivations=FALSE, yQuantBits=0, yQuantZeroInt=0, yQuantRange=1.,`  
 `        sparseWeights=FALSE, allowNegativeWeights=TRUE, hasBias=TRUE, allowIOconnections=TRUE)`
 
 Generates a x->y prediction network using *supervised* training on `trainingSamples`.
@@ -32,13 +32,14 @@ Generates a x->y prediction network using *supervised* training on `trainingSamp
 * All optional arguments (having default values) must be passed by name to avoid conflict with 'hidden' arguments that are ignored.
 
 `myNN <- CDNN_tabular_encoder(trainingSamples, sampleTableTranspose, importances=c(),`  
-`        doEncoder=TRUE, doDecoder=TRUE, numEncodingFeatures=1, numVariationalFeatures=0, variationalDistribution="NORMAL_DIST",`  
-`        maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX",`
+`        doEncoder=TRUE, doDecoder=TRUE, numEncodingFeatures=1,`  
+`        numVariationalFeatures=0, variationalDistribution="NORMAL_DIST",`  
+`        maxWeights="NO_MAX", maxHiddenNeurons="NO_MAX", maxLayers="NO_MAX",`  
 `        maxWeightDepth="NO_MAX", maxActivationRate=1.,`  
-`        maxWeightsHardLimit=TRUE, maxHiddenNeuronsHardLimit=TRUE, maxActivationsHardLimit=TRUE,'  
-`        allowedAFs=[TRUE,TRUE,TRUE,TRUE,TRUE], `  
-`        ifQuantizeWeights=FALSE, wQuantBits=0, wQuantZeroInt=0, wQuantRange=1., `  
-`        ifQuantizeActivations=FALSE, yQuantBits=0, yQuantZeroInt=0, yQuantRange=1., `  
+`        maxWeightsHardLimit=TRUE, maxHiddenNeuronsHardLimit=TRUE, maxActivationsHardLimit=TRUE,`  
+`        allowedAFs=[TRUE,TRUE,TRUE,TRUE,TRUE],`  
+`        ifQuantizeWeights=FALSE, wQuantBits=0, wQuantZeroInt=0, wQuantRange=1.,`  
+`        ifQuantizeActivations=FALSE, yQuantBits=0, yQuantZeroInt=0, yQuantRange=1.,`  
 `        sparseWeights=FALSE, allowNegativeWeights=TRUE, hasBias=TRUE)`
 
 Generates an autoencoder (or an encoder or decoder) using *unsupervised* training on `trainingSamples`.
